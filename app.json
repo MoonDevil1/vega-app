@@ -5,7 +5,7 @@
     "scheme": "dropday",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
@@ -13,7 +13,8 @@
     "android": {
       "package": "com.moondevil.dropday",
       "adaptiveIcon": {
-        "backgroundColor": "#0D1020"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0B0618"
       },
       "permissions": [
         "POST_NOTIFICATIONS"
@@ -27,6 +28,7 @@
     },
     "extra": {
       "description": "Release alerts for anime, shows, and movies"
-    }
+    },
+    "icon": "./assets/icon.png"
   }
 }
