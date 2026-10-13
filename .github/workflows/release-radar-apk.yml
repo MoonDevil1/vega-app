@@ -9,6 +9,8 @@ jobs:
   android-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      EXPO_UPDATES_PROJECT_ID: ${{ vars.EXPO_UPDATES_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
