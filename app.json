@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Release Radar",
+    "slug": "release-radar",
+    "scheme": "releaseradar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.moondevil.releaseradar",
+      "adaptiveIcon": {
+        "backgroundColor": "#0D1020"
+      },
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-notifications"
+    ],
+    "web": {
+      "name": "Release Radar"
+    },
+    "extra": {
+      "description": "Release alerts for anime, shows, and movies"
+    }
+  }
+}
