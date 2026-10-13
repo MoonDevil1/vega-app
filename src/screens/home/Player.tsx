@@ -2809,6 +2809,13 @@ const Player = ({route}: Props): React.JSX.Element => {
         ...(selectedStream?.type === 'm3u8' && {type: 'm3u8'}),
         ...(selectedStream?.type === 'mpd' && {type: 'mpd'}),
         headers: selectedStream?.headers,
+        // DRM is passed only when the provider supplies an authorized license
+        // server configuration. Plain DASH streams do not need this field.
+        ...(selectedStream?.drm?.licenseServer &&
+        /^https:\/\//i.test(selectedStream.drm.licenseServer) &&
+        ['clearkey', 'widevine', 'playready'].includes(selectedStream.drm.type)
+          ? {drm: selectedStream.drm}
+          : {}),
         metadata: {
           title: route.params?.primaryTitle,
           subtitle: activeEpisode?.title,
