@@ -35,23 +35,63 @@ export async function tvSchedule(start:Date,days=14):Promise<Release[]> {
  }
  return out;
 }
-export async function movieReleases(key:string,region:string,from:Date):Promise<Release[]>{
- if(!key.trim())return [];
- const start=[from.getFullYear(),String(from.getMonth()+1).padStart(2,'0'),String(from.getDate()).padStart(2,'0')].join('-');
- const endDate=new Date(from);endDate.setDate(endDate.getDate()+30);
- const end=[endDate.getFullYear(),String(endDate.getMonth()+1).padStart(2,'0'),String(endDate.getDate()).padStart(2,'0')].join('-');
- const url='https://api.themoviedb.org/3/discover/movie?api_key='+encodeURIComponent(key.trim())+'&region='+encodeURIComponent(region)+'&primary_release_date.gte='+start+'&primary_release_date.lte='+end+'&sort_by=primary_release_date.asc&page=1';
- const data=await getJSON(url);
- return (data.results||[]).filter((m:any)=>m.release_date).map((m:any)=>({
- id:'movie-'+m.id,category:'Movie' as const,title:m.title||m.original_title||'Movie',date:m.release_date+'T12:00:00',subtitle:m.overview||'Movie release',image:m.poster_path?'https://image.tmdb.org/t/p/w342'+m.poster_path:null,url:'https://www.themoviedb.org/movie/'+m.id,source:'TMDB · '+region,label:'Movie release (not OTT confirmed)',certainty:'announced' as const
+
+const dateOnly=(d:Date)=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+const tmdbHeaders=(credential:string):Record<string,string>=>credential.trim().startsWith('eyJ')?{'Authorization':'Bearer '+credential.trim(),'accept':'application/json'}:{'accept':'application/json'};
+async function tmdb(path:string,credential:string,params:Record<string,string>={}):Promise<any>{
+ const url=new URL('https://api.themoviedb.org/3/'+path);
+ Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
+ if(!credential.trim().startsWith('eyJ'))url.searchParams.set('api_key',credential.trim());
+ return getJSON(url.toString(),{headers:tmdbHeaders(credential)});
+}
+export async function movieReleases(credential:string,region:string,from:Date):Promise<Release[]> {
+ if(!credential.trim())return [];
+ const start=dateOnly(from),endDate=new Date(from);endDate.setDate(endDate.getDate()+60);
+ const end=dateOnly(endDate);
+ // Separate digital and theatrical dates: TMDB release_type 4 denotes digital, 3 theatrical.
+ const combos=[{type:'4',label:'Digital release · OTT platform unconfirmed'},{type:'3',label:'Theatrical release'}];
+ const out:Release[]=[];
+ const requests=combos.flatMap(group=>[1,2,3].map(page=>({group,page})));
+ const results=await Promise.allSettled(requests.map(async ({group,page})=>{
+  const data=await tmdb('discover/movie',credential,{region,'release_date.gte':start,'release_date.lte':end,with_release_type:group.type,sort_by:'popularity.desc',page:String(page),'include_adult':'false'});
+  return (data.results||[]).filter((m:any)=>m.release_date).map((m:any):Release=>({
+   id:'movie-'+m.id+'-'+group.type,category:'Movie',title:m.title||m.original_title||'Movie',
+   date:m.release_date+'T12:00:00',subtitle:m.overview||'Movie release',
+   image:m.poster_path?'https://image.tmdb.org/t/p/w342'+m.poster_path:null,
+   url:'https://www.themoviedb.org/movie/'+m.id,source:'TMDB · '+region,label:group.label,certainty:'announced'
+  }));
  }));
+ for(const result of results)if(result.status==='fulfilled')out.push(...result.value);
+ if(results.every(x=>x.status==='rejected'))throw new Error('TMDB requests failed. Check the credential or your network.');
+ return out.filter((x,i,a)=>a.findIndex(y=>y.id===x.id)===i);
+}
+export async function tmdbTV(credential:string,region:string,from:Date):Promise<Release[]>{
+ if(!credential.trim())return [];
+ const end=new Date(from);end.setDate(end.getDate()+30);
+ const out:Release[]=[];
+ const batches=await Promise.allSettled([1,2].map(page=>tmdb('tv/on_the_air',credential,{page:String(page),language:'en-US'})));
+ const candidates=batches.flatMap(x=>x.status==='fulfilled'?(x.value.results||[]):[]).slice(0,28);
+ const details=await Promise.allSettled(candidates.map(show=>tmdb('tv/'+show.id,credential,{})));
+ for(const res of details){
+  if(res.status!=='fulfilled')continue;
+  const show=res.value,ep=show.next_episode_to_air;
+  if(!ep?.air_date||ep.air_date<dateOnly(from)||ep.air_date>dateOnly(end))continue;
+  out.push({id:'tmdb-tv-'+show.id+'-'+ep.id,category:'TV',title:show.name||'Series',
+   date:ep.air_date+'T12:00:00',subtitle:ep.name||show.overview||'Upcoming episode',
+   image:show.poster_path?'https://image.tmdb.org/t/p/w342'+show.poster_path:null,
+   url:'https://www.themoviedb.org/tv/'+show.id,source:'TMDB · estimated date',label:'S'+ep.season_number+' E'+ep.episode_number+' · Air date, time unconfirmed',certainty:'announced'});
+ }
+ return out;
 }
 export async function getAll(key:string,region:string):Promise<{items:Release[];warnings:string[]}>{
- const now=new Date(), from=Math.floor(new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime()/1000),to=from+14*86400;
- const all=await Promise.allSettled([animeSchedule(from,to),tvSchedule(now),movieReleases(key,region,now)]);
+ const now=new Date(),from=Math.floor(new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime()/1000),to=from+14*86400;
+ const requests=[animeSchedule(from,to),tvSchedule(now),movieReleases(key,region,now),tmdbTV(key,region,now)];
+ const results=await Promise.allSettled(requests);
  const warnings:string[]=[];
- const names=['AniList','TVmaze','TMDB'];
- const items=all.flatMap((r,i)=>{if(r.status==='fulfilled')return r.value;warnings.push(names[i]+': '+String(r.reason?.message||'unavailable'));return [];});
- if(!key.trim())warnings.push('Add a TMDB API key in Settings to see movies.');
+ const names=['AniList','TVmaze','TMDB movies','TMDB shows'];
+ const raw=results.flatMap((r,i)=>{if(r.status==='fulfilled')return r.value;warnings.push(names[i]+': '+String(r.reason?.message||'unavailable'));return [];});
+ if(!key.trim())warnings.push('Add your TMDB v3 key or API Read Access Token in Settings for movie and extra TV listings.');
+ const seen=new Set<string>();
+ const items=raw.filter(x=>{const identity=x.category+'|'+x.title.toLowerCase()+'|'+x.label+'|'+x.date.slice(0,10);if(seen.has(identity))return false;seen.add(identity);return true;});
  return {items:items.sort((a,b)=>a.date.localeCompare(b.date)),warnings};
 }
