@@ -1,4 +1,4 @@
-name: Build Release Radar APK
+name: Build DropDay APK
 on:
   push:
     branches: [release-radar-v1]
@@ -24,6 +24,9 @@ jobs:
         run: npm run typecheck
       - name: Generate Android project
         run: npx expo prebuild --platform android --non-interactive --no-install
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - name: Assemble testable Android APK
         run: |
           cd android
@@ -32,6 +35,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-radar-v1-android-apk
+          name: dropday-v1-android-apk
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
