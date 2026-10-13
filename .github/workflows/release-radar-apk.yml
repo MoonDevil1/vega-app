@@ -1,0 +1,39 @@
+name: Build Release Radar APK
+on:
+  push:
+    branches: [release-radar-v1]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --non-interactive --no-install
+      - name: Assemble testable Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-radar-v1-android-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
