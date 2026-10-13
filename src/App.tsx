@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useState} from 'react';
-import {ActivityIndicator,FlatList,Image,Linking,Modal,Platform,Pressable,RefreshControl,SafeAreaView,ScrollView,StatusBar,StyleSheet,Switch,Text,TextInput,View,useWindowDimensions} from 'react-native';
+import {ActivityIndicator,FlatList,Image,Linking,Modal,Platform,Pressable,RefreshControl,SafeAreaView,ScrollView,Share,StatusBar,StyleSheet,Switch,Text,TextInput,View,useWindowDimensions} from 'react-native';
 import * as Notifications from 'expo-notifications';
 import {getAll} from './api';
 import {checkAndDownloadUpdate,otaConfigured,restartWithUpdate,type UpdateState} from './updater';
@@ -56,6 +56,7 @@ export default function App(){
  const countdown=(item:Release)=>{if(item.certainty!=='scheduled')return 'Date announced · time unconfirmed';const delta=new Date(item.date).getTime()-Date.now();if(delta<=0)return 'Aired';const hours=Math.floor(delta/3600000);return hours<24?'Drops in '+hours+'h '+Math.floor(delta%3600000/60000)+'m':'Drops in '+Math.floor(hours/24)+' days';};
  const featured=weekDrops.find(x=>x.certainty==='scheduled')||weekDrops[0]||grouped[0];
  const openDetails=(item:Release)=>setSelected(item);
+ const shareRelease=async(item:Release)=>{try{await Share.share({message:[item.title,item.label,item.certainty==='scheduled'?human(item.date):dayLabel(item.date)+' (time not confirmed)',item.url||''].filter(Boolean).join('\n')});}catch{setWarnings(['Sharing is unavailable on this device.']);}};
  const compact=(item:Release)=><Pressable key={item.id} onPress={()=>openDetails(item)} style={[s.compact,{backgroundColor:p.panel,borderColor:p.line}]}>
    {item.image?<Image source={{uri:item.image}} style={s.compactImage}/>:<View style={[s.compactImage,{backgroundColor:p.surface,alignItems:'center',justifyContent:'center'}]}><Text style={{fontSize:34,color:accent}}>◈</Text></View>}
    <Text numberOfLines={2} style={{color:p.text,fontWeight:'800',marginTop:7}}>{item.title}</Text>
@@ -103,8 +104,8 @@ export default function App(){
      {updated?<Text style={{color:p.muted,fontSize:11}}>Updated {new Date(updated).toLocaleTimeString()} · Schedules refresh every 30 min</Text>:null}
      {loading?<ActivityIndicator color={accent}/>:null}
      {warnings.length?<Text style={{color:p.muted,fontSize:12}}>{warnings.join(' · ')}</Text>:null}
-     {shelf('🔥 Upcoming Today',todayDrops,'No confirmed drops today for this filter.')}
-     {shelf('📆 This Week',weekDrops,'No upcoming results for this week.')}
+     {shelf('🔥 Upcoming Today',todayDrops,'No confirmed drops today. Pull to refresh, or try another category.')}
+     {shelf('📆 This Week',weekDrops,'No scheduled releases found. If you're offline, cached data remains available.')}
      {category==='All'||category==='Movie'?shelf('🎬 Movie Drops',movieDrops,'Add your TMDB credential in Settings to load movies.'):null}
      {shelf('♡ Your Watchlist',savedDrops,'Save a title to find it here.')}
      <Pressable style={[s.action,{backgroundColor:accent}]} onPress={()=>{void load(true)}}><Text style={{color:'#140622',fontWeight:'900'}}>↻ Refresh releases</Text></Pressable>
@@ -151,6 +152,7 @@ export default function App(){
        <Text style={{color:p.muted,fontSize:14,lineHeight:23}}>{selected?.subtitle}</Text>
        <Text style={{color:p.muted,fontSize:12}}>Release-tracking information only. Availability on streaming platforms may differ by region.</Text>
        {selected?<Pressable style={[s.action,{backgroundColor:accent}]} onPress={()=>toggleSaved(selected.id)}><Text style={{color:'#140622',fontWeight:'900'}}>{saved.includes(selected.id)?'♥ Remove from saved':'♡ Add to watchlist'}</Text></Pressable>:null}
+       {selected?<Pressable style={[s.action,{backgroundColor:p.surface}]} onPress={()=>{void shareRelease(selected)}}><Text style={{color:p.text,textAlign:'center',fontWeight:'800'}}>↗ Share release details</Text></Pressable>:null}
        {selected?.url?<Pressable style={[s.action,{backgroundColor:p.surface}]} onPress={()=>{void Linking.openURL(selected.url!)}}><Text style={{color:p.text,textAlign:'center',fontWeight:'800'}}>↗ Open source details</Text></Pressable>:null}
       </ScrollView>
     </View>
