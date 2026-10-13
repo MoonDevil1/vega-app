@@ -2,6 +2,7 @@ import React,{useCallback,useEffect,useMemo,useState} from 'react';
 import {ActivityIndicator,FlatList,Image,Linking,Modal,Platform,Pressable,RefreshControl,SafeAreaView,ScrollView,StatusBar,StyleSheet,Switch,Text,TextInput,View,useWindowDimensions} from 'react-native';
 import * as Notifications from 'expo-notifications';
 import {getAll} from './api';
+import {checkAndDownloadUpdate,otaConfigured,restartWithUpdate,type UpdateState} from './updater';
 import {defaults,loadReleases,readJSON,writeJSON} from './storage';
 import type {Category,Preferences,Release} from './types';
 type Tab='Discover'|'Calendar'|'Saved'|'Settings';
@@ -19,6 +20,7 @@ export default function App(){
  const [loading,setLoading]=useState(false),[updated,setUpdated]=useState(0),[warnings,setWarnings]=useState<string[]>([]);
  const [dark,setDark]=useState(true);
  const [selected,setSelected]=useState<Release|null>(null);
+ const [updateState,setUpdateState]=useState<UpdateState>('disabled');
  const p=dark?DARK:LIGHT,accent=prefs.accent==='mint'?'#50E3C2':'#B66AFF';
  const load=useCallback(async(force=false,key=prefs.tmdbKey,region=prefs.region)=>{
   const cached=await loadReleases();
@@ -31,6 +33,8 @@ export default function App(){
   }catch(e){setWarnings([String(e)]);}finally{setLoading(false);}
  },[prefs.tmdbKey,prefs.region]);
  useEffect(()=>{(async()=>{const [settings,bookmarks]=await Promise.all([readJSON<Preferences>('settings',defaults),readJSON<string[]>('saved',[])]);setPrefs(settings);setSaved(bookmarks);await load(false,settings.tmdbKey,settings.region);})();},[]);
+ const checkUpdates=useCallback(async()=>{setUpdateState('checking');setUpdateState(await checkAndDownloadUpdate());},[]);
+ useEffect(()=>{if(otaConfigured)void checkUpdates();},[checkUpdates]);
  const updatePrefs=(next:Preferences)=>{setPrefs(next);void writeJSON('settings',next);};
  const toggleSaved=(id:string)=>{const next=saved.includes(id)?saved.filter(x=>x!==id):[...saved,id];setSaved(next);void writeJSON('saved',next);};
  const remind=async(item:Release)=>{
@@ -110,6 +114,12 @@ export default function App(){
     <View style={[s.setting,{backgroundColor:p.panel}]}><Text style={{color:p.text,fontWeight:'800'}}>Release region</Text><View style={{flexDirection:'row',gap:8,marginTop:10}}>{['IN','US','GB'].map(r=><React.Fragment key={r}>{button(r,prefs.region===r,()=>updatePrefs({...prefs,region:r}))}</React.Fragment>)}</View></View>
     <View style={[s.setting,{backgroundColor:p.panel,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}]}><Text style={{color:p.text,fontWeight:'800'}}>Reminder buttons</Text><Switch value={prefs.reminders} onValueChange={v=>updatePrefs({...prefs,reminders:v})}/></View>
     <View style={[s.setting,{backgroundColor:p.panel}]}><Text style={{color:p.text,fontWeight:'800'}}>Accent</Text><View style={{flexDirection:'row',gap:8,marginTop:10}}>{button('💜 Violet',prefs.accent==='violet',()=>updatePrefs({...prefs,accent:'violet'}))}{button('🌿 Mint',prefs.accent==='mint',()=>updatePrefs({...prefs,accent:'mint'}))}</View></View>
+    <View style={[s.setting,{backgroundColor:p.panel,gap:10}]}>
+      <Text style={{color:p.text,fontWeight:'900',fontSize:17}}>App updates</Text>
+      <Text style={{color:p.muted,fontSize:12,lineHeight:19}}>{updateState==='disabled'?'Automatic over-the-air updates need a configured Expo update service in the APK.':updateState==='checking'?'Checking for an update…':updateState==='downloaded'?'New app update downloaded. Restart to apply it.':updateState==='current'?'You have the latest available app update.':'Could not check for updates. Try again online.'}</Text>
+      {updateState==='downloaded'?<Pressable onPress={()=>{void restartWithUpdate()}} style={[s.action,{backgroundColor:accent}]}><Text style={{color:'#170B22',fontWeight:'900'}}>Restart and update</Text></Pressable>:<Pressable disabled={updateState==='checking'||!otaConfigured} onPress={()=>{void checkUpdates()}} style={[s.action,{backgroundColor:otaConfigured?accent:p.surface}]}><Text style={{color:otaConfigured?'#170B22':p.muted,fontWeight:'900'}}>Check for updates</Text></Pressable>}
+      <Text style={{color:p.muted,fontSize:11}}>JavaScript and styling updates can install without another APK. Changes to native Android code still need a new APK.</Text>
+    </View>
     <Pressable onPress={()=>{void load(true)}} style={[s.action,{backgroundColor:accent}]}><Text style={{color:'#101021',fontWeight:'900'}}>Refresh live schedule</Text></Pressable>
     <Text style={{color:p.muted,lineHeight:20,fontSize:12}}>Anime: AniList public airing schedules. TV: TVmaze US broadcast plus TMDB upcoming episodes. Movies: TMDB digital and theatrical dates (key required). Times display in your device timezone. OTT platform premiere dates must be verified separately; this app never invents them. Cached schedules stay visible offline. Data providers may have gaps.</Text>
    </ScrollView>:<>
