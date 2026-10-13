@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Release Radar",
-    "slug": "release-radar",
-    "scheme": "releaseradar",
+    "name": "DropDay",
+    "slug": "dropday",
+    "scheme": "dropday",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -11,7 +11,7 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.moondevil.releaseradar",
+      "package": "com.moondevil.dropday",
       "adaptiveIcon": {
         "backgroundColor": "#0D1020"
       },
@@ -23,7 +23,7 @@
       "expo-notifications"
     ],
     "web": {
-      "name": "Release Radar"
+      "name": "DropDay"
     },
     "extra": {
       "description": "Release alerts for anime, shows, and movies"
