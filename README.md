@@ -1,4 +1,4 @@
-# release radar. ✨
+# dropday. ✨
 
 A lightweight Expo React Native app built from scratch in place of the former Vega provider-based app, on branch release-radar-v1. No video player, scraping plugins, provider loader, or legacy Vega runtime.
 
