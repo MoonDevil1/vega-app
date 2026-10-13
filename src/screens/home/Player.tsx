@@ -2811,10 +2811,10 @@ const Player = ({route}: Props): React.JSX.Element => {
         headers: selectedStream?.headers,
         // DRM is passed only when the provider supplies an authorized license
         // server configuration. Plain DASH streams do not need this field.
-        ...(selectedStream?.drm?.licenseServer &&
-        /^https:\/\//i.test(selectedStream.drm.licenseServer) &&
-        ['clearkey', 'widevine', 'playready'].includes(selectedStream.drm.type)
-          ? {drm: selectedStream.drm}
+        ...((selectedStream as any)?.drm?.licenseServer &&
+        /^https:\/\//i.test((selectedStream as any).drm.licenseServer) &&
+        ['clearkey', 'widevine', 'playready'].includes((selectedStream as any).drm.type)
+          ? {drm: (selectedStream as any).drm}
           : {}),
         metadata: {
           title: route.params?.primaryTitle,
