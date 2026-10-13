@@ -5,7 +5,7 @@ import {getAll} from './api';
 import {defaults,loadReleases,readJSON,writeJSON} from './storage';
 import type {Category,Preferences,Release} from './types';
 type Tab='Discover'|'Calendar'|'Saved'|'Settings';
-const DARK={bg:'#0B0E1A',panel:'#171B2B',surface:'#23283C',text:'#F9F8FF',muted:'#A2A8BC',line:'#343B54'};
+const DARK={bg:'#0D061B',panel:'#1B1032',surface:'#291747',text:'#F8F3FF',muted:'#BAA7D1',line:'#49306B'};
 const LIGHT={bg:'#F6F6FB',panel:'#FFFFFF',surface:'#EDEDFC',text:'#151626',muted:'#6A7083',line:'#E3E4EE'};
 const dateKey=(iso:string)=>{const d=new Date(iso);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
 const human=(iso:string)=>new Date(iso).toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
@@ -17,12 +17,12 @@ export default function App(){
  const [prefs,setPrefs]=useState<Preferences>(defaults),[saved,setSaved]=useState<string[]>([]);
  const [items,setItems]=useState<Release[]>([]),[search,setSearch]=useState(''),[day,setDay]=useState<string>('');
  const [loading,setLoading]=useState(false),[updated,setUpdated]=useState(0),[warnings,setWarnings]=useState<string[]>([]);
- const [dark,setDark]=useState(Appearance.getColorScheme()!=='light');
- const p=dark?DARK:LIGHT,accent=prefs.accent==='mint'?'#50E3C2':'#A78BFA';
+ const [dark,setDark]=useState(true);
+ const p=dark?DARK:LIGHT,accent=prefs.accent==='mint'?'#50E3C2':'#B66AFF';
  const load=useCallback(async(force=false,key=prefs.tmdbKey,region=prefs.region)=>{
   const cached=await loadReleases();
-  if(cached.items.length){setItems(cached.items);setUpdated(cached.at);}
-  if(!force&&Date.now()-cached.at<30*60*1000&&cached.items.length)return;
+  if(cached.items.length&&!force){setItems(cached.items);setUpdated(cached.at);}
+  if(!force&&Date.now()-cached.at<30*60*1000&&cached.items.length&&cached.items.some(x=>x.category==='Movie')===!!key.trim())return;
   setLoading(true);
   try{const data=await getAll(key,region);setWarnings(data.warnings);
    if(data.items.length){setItems(data.items);setUpdated(Date.now());await writeJSON('release-cache',{at:Date.now(),items:data.items});}
@@ -43,7 +43,7 @@ export default function App(){
  const today=dateKey(new Date().toISOString());
  const days=useMemo(()=>Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()+i);return dateKey(d.toISOString());}),[]);
  const visible=items.filter(x=>(category==='All'||x.category===category)&&(!search||x.title.toLowerCase().includes(search.toLowerCase()))&&(tab!=='Saved'||saved.includes(x.id))&&(tab!=='Calendar'||!day||dateKey(x.date)===day));
- const grouped=visible.slice(0,250);
+ const grouped=visible.slice(0,500);
  const button=(label:string,active:boolean,action:()=>void)=><Pressable onPress={action} style={[s.pill,{backgroundColor:active?accent:p.surface}]}><Text style={{color:active?'#111320':p.text,fontWeight:'800',fontSize:12}}>{label}</Text></Pressable>;
  const tile=({item}:{item:Release})=><View style={[s.tile,{backgroundColor:p.panel,borderColor:p.line}]}>
   {item.image?<Image source={{uri:item.image}} style={s.poster} resizeMode="cover"/>:<View style={[s.poster,{backgroundColor:p.surface,justifyContent:'center',alignItems:'center'}]}><Text style={{color:accent,fontSize:35}}>✦</Text></View>}
@@ -51,7 +51,7 @@ export default function App(){
    <Text style={{color:accent,fontSize:10,fontWeight:'900',letterSpacing:1}}>{item.category.toUpperCase()}  ·  {item.source}</Text>
    <Text numberOfLines={2} style={{color:p.text,fontWeight:'800',fontSize:16}}>{item.title}</Text>
    <Text style={{color:p.muted,fontSize:12}}>{item.label}</Text>
-   <Text style={{color:p.text,fontWeight:'700',fontSize:12}}>◷ {item.category==='Movie'?dayLabel(item.date):human(item.date)}</Text>
+   <Text style={{color:p.text,fontWeight:'700',fontSize:12}}>◷ {item.certainty==='announced'?dayLabel(item.date):human(item.date)}</Text>
    <View style={{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:3}}>
     <Pressable accessibilityLabel={'Save '+item.title} onPress={()=>toggleSaved(item.id)} style={[s.small,{backgroundColor:p.surface}]}><Text style={{color:accent,fontWeight:'800'}}>{saved.includes(item.id)?'♥ Saved':'♡ Save'}</Text></Pressable>
     {item.category!=='Movie'&&prefs.reminders?<Pressable onPress={()=>{void remind(item)}} style={[s.small,{backgroundColor:p.surface}]}><Text style={{color:p.text}}>♧ Remind</Text></Pressable>:null}
@@ -68,18 +68,18 @@ export default function App(){
   <View style={{flex:1,width:'100%',maxWidth:900,alignSelf:'center'}}>
    {tab==='Settings'?<ScrollView contentContainerStyle={{padding:18,gap:16}}>
     <Text style={{fontSize:25,fontWeight:'900',color:p.text}}>Make it yours ✨</Text>
-    <View style={[s.setting,{backgroundColor:p.panel}]}><Text style={{color:p.text,fontWeight:'800'}}>TMDB API key (for movies)</Text><Text style={{color:p.muted,fontSize:12,marginVertical:6}}>Get a free API key at themoviedb.org. Stored locally on this device. Movie dates are not proof of OTT availability.</Text><TextInput value={prefs.tmdbKey} onChangeText={v=>updatePrefs({...prefs,tmdbKey:v})} placeholder="Paste your TMDB v3 API key" placeholderTextColor={p.muted} autoCapitalize="none" secureTextEntry style={[s.input,{color:p.text,backgroundColor:p.surface}]}/></View>
-    <View style={[s.setting,{backgroundColor:p.panel}]}><Text style={{color:p.text,fontWeight:'800'}}>Movie region</Text><View style={{flexDirection:'row',gap:8,marginTop:10}}>{['IN','US','GB'].map(r=><React.Fragment key={r}>{button(r,prefs.region===r,()=>updatePrefs({...prefs,region:r}))}</React.Fragment>)}</View></View>
+    <View style={[s.setting,{backgroundColor:p.panel}]}><Text style={{color:p.text,fontWeight:'800'}}>TMDB credential (movies + more shows)</Text><Text style={{color:p.muted,fontSize:12,marginVertical:6}}>Paste either a v3 API key or API Read Access Token (Bearer token). Stored on this device only. Tap Refresh after saving. Digital release does not confirm a particular OTT service.</Text><TextInput value={prefs.tmdbKey} onChangeText={v=>updatePrefs({...prefs,tmdbKey:v})} placeholder="TMDB v3 key or API Read Access Token" placeholderTextColor={p.muted} autoCapitalize="none" secureTextEntry style={[s.input,{color:p.text,backgroundColor:p.surface}]}/></View>
+    <View style={[s.setting,{backgroundColor:p.panel}]}><Text style={{color:p.text,fontWeight:'800'}}>Release region</Text><View style={{flexDirection:'row',gap:8,marginTop:10}}>{['IN','US','GB'].map(r=><React.Fragment key={r}>{button(r,prefs.region===r,()=>updatePrefs({...prefs,region:r}))}</React.Fragment>)}</View></View>
     <View style={[s.setting,{backgroundColor:p.panel,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}]}><Text style={{color:p.text,fontWeight:'800'}}>Reminder buttons</Text><Switch value={prefs.reminders} onValueChange={v=>updatePrefs({...prefs,reminders:v})}/></View>
     <View style={[s.setting,{backgroundColor:p.panel}]}><Text style={{color:p.text,fontWeight:'800'}}>Accent</Text><View style={{flexDirection:'row',gap:8,marginTop:10}}>{button('💜 Violet',prefs.accent==='violet',()=>updatePrefs({...prefs,accent:'violet'}))}{button('🌿 Mint',prefs.accent==='mint',()=>updatePrefs({...prefs,accent:'mint'}))}</View></View>
     <Pressable onPress={()=>{void load(true)}} style={[s.action,{backgroundColor:accent}]}><Text style={{color:'#101021',fontWeight:'900'}}>Refresh live schedule</Text></Pressable>
-    <Text style={{color:p.muted,lineHeight:20,fontSize:12}}>Anime: AniList public airing schedules. TV: TVmaze US broadcast schedule. Movies: TMDB release-date metadata (key required). Times display in your device timezone. OTT platform premiere dates must be verified separately; this app never invents them. Cached schedules stay visible offline. Data providers may have gaps.</Text>
+    <Text style={{color:p.muted,lineHeight:20,fontSize:12}}>Anime: AniList public airing schedules. TV: TVmaze US broadcast plus TMDB upcoming episodes. Movies: TMDB digital and theatrical dates (key required). Times display in your device timezone. OTT platform premiere dates must be verified separately; this app never invents them. Cached schedules stay visible offline. Data providers may have gaps.</Text>
    </ScrollView>:<>
     <FlatList data={grouped} keyExtractor={x=>x.id} renderItem={tile} numColumns={wide?2:1} columnWrapperStyle={wide?{gap:12}:undefined}
      contentContainerStyle={{padding:16,paddingBottom:28,gap:12}}
      refreshControl={<RefreshControl refreshing={loading} onRefresh={()=>{void load(true)}} tintColor={accent}/>}
      ListHeaderComponent={<View style={{gap:14,marginBottom:7}}>
-      <View style={[s.hero,{backgroundColor:p.panel}]}><Text style={{color:accent,fontSize:12,fontWeight:'900'}}>DON'T MISS THE DROP ↗</Text><Text style={{color:p.text,fontSize:24,fontWeight:'900',marginTop:6}}>{tab==='Saved'?'Your watchlist ♥':tab==='Calendar'?'The next 14 days':'What’s dropping next?'}</Text><Text style={{color:p.muted,fontSize:12,marginTop:7}}>Anime · Shows · Movie releases  •  Your local timezone</Text></View>
+      <View style={[s.hero,{backgroundColor:p.panel}]}><Text style={{color:accent,fontSize:12,fontWeight:'900'}}>DON'T MISS THE DROP ↗</Text><Text style={{color:p.text,fontSize:24,fontWeight:'900',marginTop:6}}>{tab==='Saved'?'Your watchlist ♥':tab==='Calendar'?'The next 14 days':'What’s dropping next?'}</Text><Text style={{color:p.muted,fontSize:12,marginTop:7}}>Anime · Series · Digital & theatrical movies</Text></View>
       <TextInput value={search} onChangeText={setSearch} placeholder="Search titles..." placeholderTextColor={p.muted} style={[s.input,{backgroundColor:p.panel,color:p.text}]}/>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>{(['All','Anime','TV','Movie'] as const).map(c=><React.Fragment key={c}>{button(c,category===c,()=>setCategory(c))}</React.Fragment>)}</ScrollView>
       {tab==='Calendar'?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7}}>{button('Any day',!day,()=>setDay(''))}{days.map(d=><React.Fragment key={d}>{button(d===today?'Today':dayLabel(d+'T12:00:00'),day===d,()=>setDay(d))}</React.Fragment>)}</ScrollView>:null}
