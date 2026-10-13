@@ -62,7 +62,7 @@ export default function App(){
  const menu:Tab[]=['Discover','Calendar','Saved','Settings'];
  return <SafeAreaView style={{flex:1,backgroundColor:p.bg}}><StatusBar barStyle={dark?'light-content':'dark-content'}/>
   <View style={[s.header,{borderBottomColor:p.line}]}>
-   <View><Text style={{color:accent,fontSize:11,fontWeight:'900',letterSpacing:3}}>YOUR NEXT OBSESSION</Text><Text style={{color:p.text,fontSize:30,fontWeight:'900',letterSpacing:-1}}>release<Text style={{color:accent}}>radar.</Text></Text></View>
+   <View><Text style={{color:accent,fontSize:11,fontWeight:'900',letterSpacing:3}}>YOUR NEXT OBSESSION</Text><Text style={{color:p.text,fontSize:30,fontWeight:'900',letterSpacing:-1}}>drop<Text style={{color:accent}}>day.</Text></Text></View>
    <Pressable accessibilityLabel="Toggle color theme" onPress={()=>setDark(!dark)} style={[s.theme,{backgroundColor:p.surface}]}><Text style={{color:p.text,fontSize:19}}>{dark?'☀':'☾'}</Text></Pressable>
   </View>
   <View style={{flex:1,width:'100%',maxWidth:900,alignSelf:'center'}}>
