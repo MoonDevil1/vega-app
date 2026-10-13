@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "DropDay",
+    "slug": "dropday",
+    "scheme": "dropday",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.moondevil.dropday",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0B0618"
+      },
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-notifications"
+    ],
+    "web": {
+      "name": "DropDay"
+    },
+    "extra": {
+      "description": "Release alerts for anime, shows, and movies"
+    },
+    "icon": "./assets/icon.png"
+  }
+}
