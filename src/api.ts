@@ -1,5 +1,5 @@
 import type {Release} from './types';
-const asISO=(s:string)=>new Date(s).toISOString();
+const asISO=(s:string|number)=>new Date(s).toISOString();
 async function getJSON(url:string, options?:RequestInit):Promise<any>{
  const controller=new AbortController();
  const timeout=setTimeout(()=>controller.abort(),12000);
